@@ -12,7 +12,7 @@ export const initBoardPosition = () => {
 };
 
 export const showBoard = (board) => {
-  console.log("current board:\n");
+  console.log("\ncurrent board:");
   for (let row of board) {
     console.log(row.join(" | "));
   }
