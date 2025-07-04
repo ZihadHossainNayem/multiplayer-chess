@@ -34,3 +34,19 @@ export const indexToAlgebraic = (row, col) => {
 
   return colChar + rowChar;
 };
+
+export const movePiece = (board, from, to) => {
+  const [fromRow, fromCol] = algebraicToIndex(from);
+  const [toRow, toCol] = algebraicToIndex(to);
+
+  // piece at the starting position
+  const piece = board[fromRow][fromCol];
+
+  // piece to new position
+  board[toRow][toCol] = piece;
+
+  // clear its previous position
+  board[fromRow][fromCol] = "   ";
+
+  return board;
+};
