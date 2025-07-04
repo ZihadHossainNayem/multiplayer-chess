@@ -50,3 +50,43 @@ export const movePiece = (board, from, to) => {
 
   return board;
 };
+
+export const isPawnMoveLegal = (board, from, to) => {
+  const [fromRow, fromCol] = algebraicToIndex(from);
+  const [toRow, toCol] = algebraicToIndex(to);
+
+  const piece = board[fromRow][fromCol];
+  const color = piece[0]; // 'w' or 'b'
+
+  const direction = color === "w" ? -1 : 1; // white move up -1, black moves down +1
+  const startRow = color === "w" ? 6 : 1;
+
+  const diffRow = toRow - fromRow;
+  const diffCol = toCol - fromCol;
+
+  // pawn normal move: 1 step forward, (to) must be empty
+  if (diffCol === 0 && diffRow === direction && board[toRow][toCol] === "   ") {
+    return true;
+  }
+
+  // first pawn move: 2 steps forward
+  if (
+    diffCol === 0 &&
+    diffRow === 2 * direction &&
+    fromRow === startRow &&
+    board[fromRow + direction][fromCol] === "   " &&
+    board[toRow][toCol] === "   "
+  ) {
+    return true;
+  }
+
+  // capture move: diagonal 1 step, opponent piece present
+  if (
+    Math.abs(diffCol) === 1 && // diagonal to left or right
+    diffRow === direction &&
+    board[toRow][toCol] !== "   " &&
+    board[toRow][toCol][0] !== color // opponents piece
+  ) {
+    return true;
+  }
+};
