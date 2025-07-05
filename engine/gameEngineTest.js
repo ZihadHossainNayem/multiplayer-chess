@@ -27,6 +27,8 @@ import {
     isCastlingMove,
     canCastle,
     executeCastling,
+    isEnPassantPossible,
+    executeEnPassant,
 } from './gameEngine.js';
 
 // ============================================================================
@@ -297,6 +299,90 @@ showBoard(board);
 executeCastling(board, 'w', 'kingSide');
 testCase('king moved to g1', board[7][6] === 'wKG'); // king position after castling
 testCase('rook moved to f1', board[7][5] === 'wRK'); // rook position after castling
+
+// ============================================================================
+// EN PASSANT TESTS
+// ============================================================================
+
+console.log('\ntesting en passant functionality');
+
+// basic en passant detection - white captures black
+let testGameState = createNewGameState();
+// manually set up the board position
+testGameState.board[3][4] = 'wPN'; // white pawn on e5
+testGameState.board[3][3] = 'bPN'; // black pawn on d5
+testGameState.board[6][3] = '   '; // remove original d2 pawn
+testGameState.currentPlayer = 'w';
+// simulate that black pawn just moved d7-d5
+testGameState.moveLog.push({
+    moveNumber: 1,
+    from: 'd7',
+    to: 'd5',
+    piece: 'bPN',
+    player: 'b',
+});
+console.log('\nsetup for white en passant test:');
+showBoard(testGameState.board);
+
+testCase('white en passant detection', isEnPassantPossible(testGameState, 'e5', 'd6') === true);
+
+// basic en passant detection - black captures white
+testGameState = createNewGameState();
+testGameState.board[4][4] = 'bPN'; // black pawn on e4
+testGameState.board[4][3] = 'wPN'; // white pawn on d4
+testGameState.board[1][3] = '   '; // remove original d7 pawn
+testGameState.currentPlayer = 'b';
+// simulate that white pawn just moved d2-d4
+testGameState.moveLog.push({
+    moveNumber: 1,
+    from: 'd2',
+    to: 'd4',
+    piece: 'wPN',
+    player: 'w',
+});
+console.log('\nsetup for black en passant test:');
+showBoard(testGameState.board);
+
+testCase('black en passant detection', isEnPassantPossible(testGameState, 'e4', 'd3') === true);
+
+// en passant not possible - no last move
+testGameState = createNewGameState();
+testGameState.board[3][4] = 'wPN'; // white pawn on e5
+testGameState.board[3][3] = 'bPN'; // black pawn on d5
+testGameState.moveLog = []; // no previous moves
+
+testCase('en passant not possible - no last move', isEnPassantPossible(testGameState, 'e5', 'd6') === false);
+
+// en passant execution
+testGameState = createNewGameState();
+testGameState.board[3][4] = 'wPN'; // white pawn on e5
+testGameState.board[3][3] = 'bPN'; // black pawn on d5
+let testBoard = testGameState.board.map((row) => [...row]); // copy board
+executeEnPassant(testBoard, 'e5', 'd6');
+
+testCase('en passant execution - pawn moved', testBoard[2][3] === 'wPN'); // d6 has white pawn
+testCase('en passant execution - captured pawn removed', testBoard[3][3] === '   '); // d5 is empty
+
+// en passant through pawn move validation
+testGameState = createNewGameState();
+testGameState.board[3][4] = 'wPN'; // white pawn on e5
+testGameState.board[3][3] = 'bPN'; // black pawn on d5
+testGameState.board[2][3] = '   '; // d6 is empty
+testGameState.currentPlayer = 'w';
+testGameState.moveLog.push({
+    moveNumber: 1,
+    from: 'd7',
+    to: 'd5',
+    piece: 'bPN',
+    player: 'b',
+});
+
+testCase(
+    'en passant through pawn validation',
+    isPawnMoveLegal(testGameState.board, 'e5', 'd6', testGameState) === true
+);
+
+console.log('\nen passant tests completed');
 
 // ============================================================================
 // TEST RESULTS

@@ -152,7 +152,7 @@ const isDiagonalLineMove = (fromRow, fromCol, toRow, toCol) => {
 // PIECE-SPECIFIC MOVE VALIDATION
 // ============================================================================
 
-export const isPawnMoveLegal = (board, from, to) => {
+export const isPawnMoveLegal = (board, from, to, gameState = null) => {
     const pawnMoveData = validatePieceMove(board, from, to, 'PN');
     if (!pawnMoveData) return false;
     const { fromRow, fromCol, toRow, toCol, color, targetBlock } = pawnMoveData;
@@ -179,6 +179,10 @@ export const isPawnMoveLegal = (board, from, to) => {
     // capture move: diagonal 1 step, opponent piece present
     if (Math.abs(colDiff) === 1 && rowDiff === direction && targetBlock !== '   ' && targetBlock[0] !== color)
         return true;
+
+    // en passant capture : diagonal 1 step to empty square, but only if gameState is provided
+    if (gameState && Math.abs(colDiff) === 1 && rowDiff === direction && targetBlock === '   ')
+        return isEnPassantPossible(gameState, from, to);
 
     return false;
 };
@@ -251,7 +255,7 @@ export const isKingMoveLegal = (board, from, to) => {
 // GLOBAL MOVE : SINGLE VALIDATION ENTRY POINT
 // ============================================================================
 
-export const isMoveLegal = (board, from, to) => {
+export const isMoveLegal = (board, from, to, gameState = null) => {
     const [fromRow, fromCol] = algebraicToIndex(from);
     const piece = board[fromRow][fromCol];
 
@@ -261,7 +265,7 @@ export const isMoveLegal = (board, from, to) => {
 
     switch (pieceType) {
         case 'PN':
-            return isPawnMoveLegal(board, from, to);
+            return isPawnMoveLegal(board, from, to, gameState);
         case 'RK':
             return isRookMoveLegal(board, from, to);
         case 'BS':
@@ -320,13 +324,20 @@ export const isKingInCheck = (board, color) => {
 };
 
 // illegal move that expose king
-export const leaveKingInCheck = (board, from, to, playerColor) => {
+export const leaveKingInCheck = (board, from, to, playerColor, gameState = null) => {
     const tempBoard = board.map((row) => [...row]); // temporary copy of board
-    movePiece(tempBoard, from, to); // make move temporary board
+
+    // check if this is an en passant move
+    if (gameState && isEnPassantPossible(gameState, from, to)) {
+        executeEnPassant(tempBoard, from, to);
+    } else {
+        movePiece(tempBoard, from, to); // make move on temporary board
+    }
+
     return isKingInCheck(tempBoard, playerColor);
 };
 
-export const isMoveLegalAndSafe = (board, from, to, castlingRights = null) => {
+export const isMoveLegalAndSafe = (board, from, to, castlingRights = null, gameState = null) => {
     // check if its a castling move
     if (isCastlingMove(board, from, to)) {
         if (!castlingRights) return false;
@@ -335,14 +346,14 @@ export const isMoveLegalAndSafe = (board, from, to, castlingRights = null) => {
         return canCastle(board, color, side, castlingRights);
     }
 
-    if (!isMoveLegal(board, from, to)) return false; // illegal move check
+    if (!isMoveLegal(board, from, to, gameState)) return false; // illegal move check
 
     // king expose check
     const [fromRow, fromCol] = algebraicToIndex(from);
     const piece = board[fromRow][fromCol];
     const playerColor = piece[0];
 
-    if (leaveKingInCheck(board, from, to, playerColor)) return false;
+    if (leaveKingInCheck(board, from, to, playerColor, gameState)) return false;
 
     return true; // move legal and safe
 };
@@ -351,7 +362,7 @@ export const isMoveLegalAndSafe = (board, from, to, castlingRights = null) => {
 // CHECKMATE DETECTION
 // ============================================================================
 
-export const getAllPossibleMoves = (board, color, castlingRights = null) => {
+export const getAllPossibleMoves = (board, color, castlingRights = null, gameState = null) => {
     const moves = [];
 
     for (let fromRow = 0; fromRow < 8; fromRow++) {
@@ -368,7 +379,7 @@ export const getAllPossibleMoves = (board, color, castlingRights = null) => {
                     const to = indexToAlgebraic(toRow, toCol);
 
                     // add it to the list if move is legal
-                    if (isMoveLegalAndSafe(board, from, to, castlingRights)) {
+                    if (isMoveLegalAndSafe(board, from, to, castlingRights, gameState)) {
                         moves.push({ from, to, piece });
                     }
                 }
@@ -379,15 +390,15 @@ export const getAllPossibleMoves = (board, color, castlingRights = null) => {
     return moves;
 };
 
-export const isCheckmate = (board, color, castlingRights = null) => {
+export const isCheckmate = (board, color, castlingRights = null, gameState = null) => {
     if (!isKingInCheck(board, color)) return false; // is the king in check
-    const possibleMoves = getAllPossibleMoves(board, color, castlingRights); // check for legal move to escape
+    const possibleMoves = getAllPossibleMoves(board, color, castlingRights, gameState); // check for legal move to escape
     return possibleMoves.length === 0; // no legal move exits, checkmate
 };
 
-export const isStalemate = (board, color, castlingRights = null) => {
+export const isStalemate = (board, color, castlingRights = null, gameState = null) => {
     if (isKingInCheck(board, color)) return false; // king not in check, but no legal moves
-    const possibleMoves = getAllPossibleMoves(board, color, castlingRights);
+    const possibleMoves = getAllPossibleMoves(board, color, castlingRights, gameState);
     return possibleMoves.length === 0;
 };
 
@@ -518,6 +529,66 @@ export const updateCastlingRights = (castlingRights, from, to = null, piece) => 
 };
 
 // ============================================================================
+// EN PASSANT VALIDATION & EXECUTION
+// ============================================================================
+
+export const isEnPassantPossible = (gameState, from, to) => {
+    const lastMove = getLastMove(gameState);
+    if (!lastMove) return false;
+
+    const [fromRow, fromCol] = algebraicToIndex(from);
+    const [toRow, toCol] = algebraicToIndex(to);
+    const piece = gameState.board[fromRow][fromCol];
+
+    if (!piece.endsWith('PN')) return false; // must be a pawn move
+
+    const color = piece[0];
+    const direction = color === 'w' ? -1 : 1;
+    const expectedRank = color === 'w' ? 3 : 4; // 5th rank for white, 4th rank for black
+
+    if (fromRow !== expectedRank) return false; // pawn must be on the correct rank
+
+    // must be diagonal move to empty block
+    const rowDiff = toRow - fromRow;
+    const colDiff = toCol - fromCol;
+    if (rowDiff !== direction || Math.abs(colDiff) !== 1) return false;
+
+    // check if last move was 2 block pawn move
+    const lastMoveFromPos = algebraicToIndex(lastMove.from);
+    const lastMoveToPos = algebraicToIndex(lastMove.to);
+    const [lastFromRow, lastFromCol] = lastMoveFromPos;
+    const [lastToRow, lastToCol] = lastMoveToPos;
+
+    if (!lastMove.piece.endsWith('PN')) return false; // last move must be a pawn
+
+    // last move must be 2 block forward
+    const lastMoveDirection = lastMove.piece[0] === 'w' ? -1 : 1;
+    if (Math.abs(lastToRow - lastFromRow) !== 2) return false;
+    if (lastToRow - lastFromRow !== 2 * lastMoveDirection) return false;
+
+    if (lastToRow !== fromRow || lastToCol !== toCol) return false; // capturing pawn must be adjacent and ont he same rank
+
+    const capturedPawn = gameState.board[lastToRow][lastToCol];
+    if (capturedPawn[0] === color) return false; // captured pawn must be opposite color
+
+    return true;
+};
+
+export const executeEnPassant = (board, from, to) => {
+    const [fromRow, fromCol] = algebraicToIndex(from);
+    const [toRow, toCol] = algebraicToIndex(to);
+    const piece = board[fromRow][fromCol];
+
+    // move pawn to the destination
+    board[toRow][toCol] = piece;
+    board[fromRow][fromCol] = '   ';
+
+    board[fromRow][toCol] = '   '; // remove the captured pawn
+
+    return board;
+};
+
+// ============================================================================
 // GAME STATE MANAGEMENT
 // ============================================================================
 
@@ -562,6 +633,7 @@ export const logMove = (gameState, from, to, piece, capturedPiece = null, specia
 };
 
 // main function to make a move in game
+// main function to make a move in game
 export const makeGameMove = (gameState, from, to) => {
     // get position and pieces
     const [fromRow, fromCol] = algebraicToIndex(from);
@@ -590,9 +662,25 @@ export const makeGameMove = (gameState, from, to) => {
 
         const castlingNotation = side === 'kingSide' ? '0-0' : '0-0-0'; // log castling move with special notation
         logMove(gameState, from, to, piece, null, castlingNotation);
+    }
+
+    // check if it's en passant
+    else if (isEnPassantPossible(gameState, from, to)) {
+        // validate en passant move
+        if (!isMoveLegalAndSafe(gameState.board, from, to, gameState.castlingRights, gameState))
+            throw new Error(`illegal en passant move: ${from} to ${to}`);
+
+        // get the captured pawn before executing the move
+        const capturedPawnRow = fromRow;
+        const capturedPawnCol = toCol;
+        const capturedPawn = gameState.board[capturedPawnRow][capturedPawnCol];
+
+        executeEnPassant(gameState.board, from, to);
+
+        logMove(gameState, from, to, piece, capturedPawn, `${piece} ${from}x${to} e.p.`);
     } else {
         // regular move validation
-        if (!isMoveLegalAndSafe(gameState.board, from, to, gameState.castlingRights))
+        if (!isMoveLegalAndSafe(gameState.board, from, to, gameState.castlingRights, gameState))
             throw new Error(`illegal move ${from} to ${to}`);
 
         movePiece(gameState.board, from, to);
@@ -607,10 +695,10 @@ export const makeGameMove = (gameState, from, to) => {
 
     const currentColor = gameState.currentPlayer; // update game status based on check, checkmate, stalemate
 
-    if (isCheckmate(gameState.board, currentColor)) {
+    if (isCheckmate(gameState.board, currentColor, gameState.castlingRights, gameState)) {
         gameState.gameStatus = 'checkmate';
         gameState.winner = currentColor === 'w' ? 'b' : 'w'; // previous player wins
-    } else if (isStalemate(gameState.board, currentColor)) {
+    } else if (isStalemate(gameState.board, currentColor, gameState.castlingRights, gameState)) {
         gameState.gameStatus = 'stalemate';
         gameState.winner = 'draw';
     } else if (isKingInCheck(gameState.board, currentColor)) {
