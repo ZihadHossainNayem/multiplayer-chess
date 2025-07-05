@@ -11,6 +11,22 @@ import {
 } from './gameEngine.js';
 
 // ============================================================================
+// TEST TRACKING
+// ============================================================================
+let testResults = { passed: 0, failed: 0, total: 0 };
+
+const testCase = (testName, condition) => {
+    testResults.total++;
+    if (condition) {
+        testResults.passed++;
+        console.log(`${testName}: pass`);
+    } else {
+        testResults.failed++;
+        console.log(`${testName}: fail`);
+    }
+};
+
+// ============================================================================
 // INITIAL SETUP & BASIC FUNCTIONALITY TESTS
 // ============================================================================
 
@@ -19,10 +35,6 @@ showBoard(board);
 
 console.log(algebraicToIndex('e2'));
 console.log(indexToAlgebraic(6, 4));
-
-const testCase = (testName, condition) => {
-    console.log(`${testName}: ${condition ? 'pass' : 'fail'}`);
-};
 
 // ============================================================================
 // BASIC PIECE MOVEMENT TEST
@@ -35,7 +47,6 @@ showBoard(board);
 // ============================================================================
 // PAWN TESTS CASE
 // ============================================================================
-
 board = initBoardPos();
 console.log('\ntesting pawn moves');
 showBoard(board);
@@ -110,4 +121,9 @@ showBoard(board);
 testCase('queen case 6', isQueenMoveLegal(board, 'd3', 'g6') === true); // valid capture
 testCase('queen case 7', isQueenMoveLegal(board, 'd3', 'e5') === false); // invalid capture
 
-console.log('\ntests completed!');
+// ============================================================================
+// TEST RESULTS
+// ============================================================================
+console.log('\n\ntest results:');
+console.log(`Total: ${testResults.total} | Passed: ${testResults.passed} | Failed: ${testResults.failed}`);
+console.log(`Success Rate: ${((testResults.passed / testResults.total) * 100).toFixed(1)}%\n\n`);
