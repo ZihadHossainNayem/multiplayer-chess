@@ -1,0 +1,13 @@
+{
+    "name": "chess-engine",
+    "version": "1.0.0",
+    "description": "chess engine test",
+    "main": "test.js",
+    "scripts": {
+        "test": "node gameEngineTest.js",
+        "dev": "nodemon gameEngineTest.js"
+    },
+    "dependencies": {
+        "nodemon": "^3.1.10"
+    }
+}
