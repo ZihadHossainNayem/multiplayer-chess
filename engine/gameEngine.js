@@ -246,3 +246,38 @@ export const isKingMoveLegal = (board, from, to) => {
 
     return canCaptureOrMove(targetBlock, color);
 };
+
+// ============================================================================
+// GLOBAL MOVE : SINGLE VALIDATION ENTRY POINT
+// ============================================================================
+
+export const isMoveLegal = (board, from, to) => {
+    const [fromRow, fromCol] = algebraicToIndex(from);
+    const piece = board[fromRow][fromCol];
+
+    if (piece === '   ') return false;
+
+    const pieceType = piece.substring(1); // get piece info PN RK QN
+
+    switch (pieceType) {
+        case 'PN':
+            return isPawnMoveLegal(board, from, to);
+        case 'RK':
+            return isRookMoveLegal(board, from, to);
+        case 'BS':
+            return isBishopMoveLegal(board, from, to);
+        case 'QN':
+            return isQueenMoveLegal(board, from, to);
+        case 'KN':
+            return isKnightMoveLegal(board, from, to);
+        case 'KG':
+            return isKingMoveLegal(board, from, to);
+        default:
+            return false;
+    }
+};
+
+export const makeMove = (board, from, to) => {
+    if (!isMoveLegal(board, from, to)) throw new Error(`illegal move: ${from} to ${to}`);
+    return movePiece(board, from, to);
+};

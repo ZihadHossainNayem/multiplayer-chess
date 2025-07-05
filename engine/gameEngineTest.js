@@ -10,6 +10,7 @@ import {
     isQueenMoveLegal,
     isKnightMoveLegal,
     isKingMoveLegal,
+    isMoveLegal,
 } from './gameEngine.js';
 
 // ============================================================================
@@ -100,7 +101,7 @@ showBoard(board);
 testCase('bishop case 3', isBishopMoveLegal(board, 'f1', 'b5') === true); // capture test setup
 movePiece(board, 'e4', 'e2');
 showBoard(board);
-testCase('bishop case 4', isBishopMoveLegal(board, 'f1', 'e2') === false); // invalid capture test (own piece)
+testCase('bishop case 4', isBishopMoveLegal(board, 'f1', 'e2') === false); // invalid capture test
 
 // ============================================================================
 // QUEEN TESTS CASE
@@ -159,11 +160,26 @@ testCase('king case 5', isKingMoveLegal(board, 'e2', 'c4') === false); // invali
 movePiece(board, 'd7', 'd3');
 showBoard(board);
 testCase('king case 6', isKingMoveLegal(board, 'e2', 'd3') === true); // valid capture
-testCase('king case 7', isKingMoveLegal(board, 'e2', 'd1') === false); // invalid capture (own piece)
+testCase('king case 7', isKingMoveLegal(board, 'e2', 'd1') === false); // invalid capture
+
+// ============================================================================
+// GLOBAL MOVE VALIDATION TESTS
+// ============================================================================
+
+console.log('\ntesting global move validation');
+board = initBoardPos();
+showBoard(board);
+
+testCase('global case 1', isMoveLegal(board, 'e2', 'e4') === true); // pawn move
+testCase('global case 2', isMoveLegal(board, 'b1', 'c3') === true); // knight move
+testCase('global case 3', isMoveLegal(board, 'a1', 'a3') === false); // blocked rook
+testCase('global case 4', isMoveLegal(board, 'f1', 'a6') === false); // blocked bishop
+testCase('global case 5', isMoveLegal(board, 'e1', 'e2') === false); // blocked king
+testCase('global case 6', isMoveLegal(board, 'h3', 'h4') === false); // no piece at position
 
 // ============================================================================
 // TEST RESULTS
 // ============================================================================
-console.log('\n\ntest results:');
+console.log('\n\nTest Results:');
 console.log(`Total: ${testResults.total} | Passed: ${testResults.passed} | Failed: ${testResults.failed}`);
 console.log(`Success Rate: ${((testResults.passed / testResults.total) * 100).toFixed(1)}%\n\n`);
