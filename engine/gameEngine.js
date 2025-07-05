@@ -589,6 +589,40 @@ export const executeEnPassant = (board, from, to) => {
 };
 
 // ============================================================================
+// PAWN PROMOTION VALIDATION & EXECUTION
+// ============================================================================
+
+export const isPawnPromotion = (from, to, piece) => {
+    if (!piece.endsWith('PN')) return false; // must be pawn
+
+    const [toRow] = algebraicToIndex(to);
+    const color = piece[0];
+
+    const promotionRank = color === 'w' ? 0 : 7; // white reaches 8, black reaches 1
+    return toRow === promotionRank;
+};
+
+export const executePawnPromotion = (board, to, promotionPiece = 'QN') => {
+    const [toRow, toCol] = algebraicToIndex(to);
+    const currentPiece = board[toRow][toCol];
+
+    if (!currentPiece.endsWith('PN')) return board;
+
+    const color = currentPiece[0];
+    const validPromotions = ['QN', 'RK', 'BS', 'KN'];
+
+    const finalPiece = validPromotions.includes(promotionPiece) ? promotionPiece : 'QN'; // default to queen if invalid promotion
+
+    board[toRow][toCol] = color + finalPiece;
+    return board;
+};
+
+export const isValidPromotionPiece = (piece) => {
+    const validPieces = ['QN', 'RK', 'BS', 'KN'];
+    return validPieces.includes(piece);
+};
+
+// ============================================================================
 // GAME STATE MANAGEMENT
 // ============================================================================
 
@@ -633,8 +667,7 @@ export const logMove = (gameState, from, to, piece, capturedPiece = null, specia
 };
 
 // main function to make a move in game
-// main function to make a move in game
-export const makeGameMove = (gameState, from, to) => {
+export const makeGameMove = (gameState, from, to, promotionPiece = 'QN') => {
     // get position and pieces
     const [fromRow, fromCol] = algebraicToIndex(from);
     const [toRow, toCol] = algebraicToIndex(to);
@@ -685,8 +718,20 @@ export const makeGameMove = (gameState, from, to) => {
 
         movePiece(gameState.board, from, to);
 
-        const captured = capturedPiece !== '   ' ? capturedPiece : null;
-        logMove(gameState, from, to, piece, captured);
+        // check for pawn promotion after the move
+        if (isPawnPromotion(from, to, piece)) {
+            if (!isValidPromotionPiece(promotionPiece)) {
+                throw new Error(`invalid promotion piece: ${promotionPiece}`);
+            }
+            executePawnPromotion(gameState.board, to, promotionPiece);
+
+            const captured = capturedPiece !== '   ' ? capturedPiece : null;
+            const promotionNotation = `${piece} ${from}-${to}=${promotionPiece}`;
+            logMove(gameState, from, to, piece, captured, promotionNotation);
+        } else {
+            const captured = capturedPiece !== '   ' ? capturedPiece : null;
+            logMove(gameState, from, to, piece, captured);
+        }
     }
 
     gameState.castlingRights = updateCastlingRights(gameState.castlingRights, from, to, piece); // update castling right

@@ -29,6 +29,9 @@ import {
     executeCastling,
     isEnPassantPossible,
     executeEnPassant,
+    isPawnPromotion,
+    executePawnPromotion,
+    isValidPromotionPiece,
 } from './gameEngine.js';
 
 // ============================================================================
@@ -382,7 +385,61 @@ testCase(
     isPawnMoveLegal(testGameState.board, 'e5', 'd6', testGameState) === true
 );
 
-console.log('\nen passant tests completed');
+// ============================================================================
+// PAWN PROMOTION TESTS
+// ============================================================================
+
+console.log('\ntesting pawn promotion functionality');
+
+// wite pawn promotion detection
+testCase('white pawn e7-e8 promotes', isPawnPromotion('e7', 'e8', 'wPN') === true);
+testCase('white pawn e6-e7 does not promote', isPawnPromotion('e6', 'e7', 'wPN') === false);
+
+// black pawn promotion detection
+testCase('black pawn d2-d1 promotes', isPawnPromotion('d2', 'd1', 'bPN') === true);
+testCase('black pawn d3-d2 does not promote', isPawnPromotion('d3', 'd2', 'bPN') === false);
+
+// non-pawn pieces don't promote
+testCase('king does not promote', isPawnPromotion('e1', 'e8', 'wKG') === false);
+testCase('rook does not promote', isPawnPromotion('a1', 'a8', 'wRK') === false);
+
+// pawn promotion execution - Queen
+let testPromotionBoard = initBoardPos();
+testPromotionBoard[0][4] = 'wPN'; // place white pawn on e8
+executePawnPromotion(testPromotionBoard, 'e8', 'QN');
+testCase('white pawn promoted to queen', testPromotionBoard[0][4] === 'wQN');
+
+// pawn promotion execution - Rook
+testPromotionBoard = initBoardPos();
+testPromotionBoard[7][3] = 'bPN'; // place black pawn on d1
+executePawnPromotion(testPromotionBoard, 'd1', 'RK');
+testCase('black pawn promoted to rook', testPromotionBoard[7][3] === 'bRK');
+
+// pawn promotion execution - Bishop (
+testPromotionBoard = initBoardPos();
+testPromotionBoard[0][5] = 'wPN'; // place white pawn on f8
+executePawnPromotion(testPromotionBoard, 'f8', 'BS');
+testCase('white pawn promoted to bishop', testPromotionBoard[0][5] === 'wBS');
+
+// pawn promotion execution - Knight
+testPromotionBoard = initBoardPos();
+testPromotionBoard[7][6] = 'bPN'; // place black pawn on g1
+executePawnPromotion(testPromotionBoard, 'g1', 'KN');
+testCase('black pawn promoted to knight', testPromotionBoard[7][6] === 'bKN');
+
+// invalid promotion defaults to Queen
+testPromotionBoard = initBoardPos();
+testPromotionBoard[0][2] = 'wPN'; // place white pawn on c8
+executePawnPromotion(testPromotionBoard, 'c8', 'XX'); // invalid piece
+testCase('invalid promotion defaults to queen', testPromotionBoard[0][2] === 'wQN');
+
+// valid promotion piece check
+testCase('QN is valid promotion', isValidPromotionPiece('QN') === true);
+testCase('RK is valid promotion', isValidPromotionPiece('RK') === true);
+testCase('BS is valid promotion', isValidPromotionPiece('BS') === true);
+testCase('KN is valid promotion', isValidPromotionPiece('KN') === true);
+testCase('KG is not valid promotion', isValidPromotionPiece('KG') === false);
+testCase('PN is not valid promotion', isValidPromotionPiece('PN') === false);
 
 // ============================================================================
 // TEST RESULTS
