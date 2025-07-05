@@ -277,11 +277,6 @@ export const isMoveLegal = (board, from, to) => {
     }
 };
 
-export const makeMove = (board, from, to) => {
-    if (!isMoveLegal(board, from, to)) throw new Error(`illegal move: ${from} to ${to}`);
-    return movePiece(board, from, to);
-};
-
 // ============================================================================
 // KING DETECTION AND SAFETY
 // ============================================================================
@@ -331,7 +326,15 @@ export const leaveKingInCheck = (board, from, to, playerColor) => {
     return isKingInCheck(tempBoard, playerColor);
 };
 
-export const isMoveLegalAndSafe = (board, from, to) => {
+export const isMoveLegalAndSafe = (board, from, to, castlingRights = null) => {
+    // check if its a castling move
+    if (isCastlingMove(board, from, to)) {
+        if (!castlingRights) return false;
+
+        const { color, side } = getCastlingDetails(from, to);
+        return canCastle(board, color, side, castlingRights);
+    }
+
     if (!isMoveLegal(board, from, to)) return false; // illegal move check
 
     // king expose check
@@ -348,7 +351,7 @@ export const isMoveLegalAndSafe = (board, from, to) => {
 // CHECKMATE DETECTION
 // ============================================================================
 
-export const getAllPossibleMoves = (board, color) => {
+export const getAllPossibleMoves = (board, color, castlingRights = null) => {
     const moves = [];
 
     for (let fromRow = 0; fromRow < 8; fromRow++) {
@@ -365,7 +368,7 @@ export const getAllPossibleMoves = (board, color) => {
                     const to = indexToAlgebraic(toRow, toCol);
 
                     // add it to the list if move is legal
-                    if (isMoveLegalAndSafe(board, from, to)) {
+                    if (isMoveLegalAndSafe(board, from, to, castlingRights)) {
                         moves.push({ from, to, piece });
                     }
                 }
@@ -376,16 +379,142 @@ export const getAllPossibleMoves = (board, color) => {
     return moves;
 };
 
-export const isCheckmate = (board, color) => {
+export const isCheckmate = (board, color, castlingRights = null) => {
     if (!isKingInCheck(board, color)) return false; // is the king in check
-    const possibleMoves = getAllPossibleMoves(board, color); // check for legal move to escape
+    const possibleMoves = getAllPossibleMoves(board, color, castlingRights); // check for legal move to escape
     return possibleMoves.length === 0; // no legal move exits, checkmate
 };
 
-export const isStalemate = (board, color) => {
+export const isStalemate = (board, color, castlingRights = null) => {
     if (isKingInCheck(board, color)) return false; // king not in check, but no legal moves
-    const possibleMoves = getAllPossibleMoves(board, color);
+    const possibleMoves = getAllPossibleMoves(board, color, castlingRights);
     return possibleMoves.length === 0;
+};
+
+// ============================================================================
+// CASTLING VALIDATION & EXECUTION
+// ============================================================================
+
+const isCastlingPathClear = (board, color, side) => {
+    const row = color === 'w' ? 7 : 0;
+
+    if (side === 'kingSide') {
+        return board[row][5] === '   ' && board[row][6] === '   '; // check f1/f8 and g1/g8 empty
+    } else {
+        return board[row][3] === '   ' && board[row][2] === '   ' && board[row][1] === '   '; // check d1/d8 , c1/c8 and b1/b8 empty
+    }
+};
+
+const isCastlingPathSafe = (board, color, side) => {
+    const row = color === 'w' ? 7 : 0;
+    const opponentColor = color === 'w' ? 'b' : 'w';
+
+    if (side === 'kingSide') {
+        // king move from e1 to f1 to g1, check f1 and g1 are safe
+        return !canOpponentCapture(board, row, 5, opponentColor) && !canOpponentCapture(board, row, 6, opponentColor);
+    } else {
+        // king moves from e1 to d1 to c1 , check d1 and c1 are safe
+        return !canOpponentCapture(board, row, 3, opponentColor) && !canOpponentCapture(board, row, 2, opponentColor);
+    }
+};
+
+export const canCastle = (board, color, side, castlingRights) => {
+    // check if the king or rook moved
+    if (color === 'w') {
+        if (castlingRights.whiteKingMoved) return false;
+        if (side === 'kingSide' && castlingRights.whiteKingSideRookMoved) return false;
+        if (side === 'queenSide' && castlingRights.whiteQueenSideRookMoved) return false;
+    } else {
+        if (castlingRights.blackKingMoved) return false;
+        if (side === 'kingSide' && castlingRights.blackKingSideRookMoved) return false;
+        if (side === 'queenSide' && castlingRights.blackQueenSideRookMoved) return false;
+    }
+
+    if (isKingInCheck(board, color)) return false; // check if king in status:check
+    if (!isCastlingPathClear(board, color, side)) return false; // check if block between king and root empty
+    if (!isCastlingPathSafe(board, color, side)) return false; // check if king falls in check
+
+    return true;
+};
+
+export const isCastlingMove = (board, from, to) => {
+    const [fromRow, fromCol] = algebraicToIndex(from);
+    const [toRow, toCol] = algebraicToIndex(to);
+    const piece = board[fromRow][fromCol];
+
+    if (!piece.endsWith('KG')) return false; // must be a king move
+    if (fromRow !== toRow || Math.abs(toCol - fromCol) !== 2) return false; // must be 2 block horizontally
+
+    const expectedRow = piece[0] === 'w' ? 7 : 0;
+    if (fromRow !== expectedRow || fromCol !== 4) return false; // must be from starting position
+
+    return true;
+};
+
+export const getCastlingDetails = (from, to) => {
+    const [, fromCol] = algebraicToIndex(from);
+    const [, toCol] = algebraicToIndex(to);
+
+    const side = toCol > fromCol ? 'kingSide' : 'queenSide';
+    const color = from[1] === '1' ? 'w' : 'b';
+
+    return { color, side };
+};
+
+export const executeCastling = (board, color, side) => {
+    if (side === 'kingSide') {
+        if (color === 'w') {
+            // white kingSide : king e1 to g1, rook h1 to f1
+            movePiece(board, 'e1', 'g1');
+            movePiece(board, 'h1', 'f1');
+        } else {
+            // black kingSide : king e8 to g8, rook h8 to f8
+            movePiece(board, 'e8', 'g8');
+            movePiece(board, 'h8', 'f8');
+        }
+    } else {
+        if (color === 'w') {
+            // white queenSide: king e1 to c1, rook a1 to d1
+            movePiece(board, 'e1', 'c1');
+            movePiece(board, 'a1', 'd1');
+        } else {
+            // black queenSide: king e8 to c8, rook a8 to d8
+            movePiece(board, 'e8', 'c8');
+            movePiece(board, 'a8', 'd8');
+        }
+    }
+    return board;
+};
+
+export const createCastlingRights = () => {
+    return {
+        whiteKingMoved: false,
+        whiteKingSideRookMoved: false,
+        whiteQueenSideRookMoved: false,
+        blackKingMoved: false,
+        blackKingSideRookMoved: false,
+        blackQueenSideRookMoved: false,
+    };
+};
+
+export const updateCastlingRights = (castlingRights, from, to = null, piece) => {
+    const newRights = { ...castlingRights };
+
+    // update when piece move
+    if (piece === 'wKG') newRights.whiteKingMoved = true;
+    if (piece === 'bKG') newRights.blackKingMoved = true;
+    if (from === 'a1' && piece === 'wRK') newRights.whiteQueenSideRookMoved = true;
+    if (from === 'h1' && piece === 'wRK') newRights.whiteKingSideRookMoved = true;
+    if (from === 'a8' && piece === 'bRK') newRights.blackQueenSideRookMoved = true;
+    if (from === 'h8' && piece === 'bRK') newRights.blackKingSideRookMoved = true;
+
+    // update when rooks get captured
+    if (to === 'a1') newRights.whiteQueenSideRookMoved = true;
+    if (to === 'h1') newRights.whiteKingSideRookMoved = true;
+    if (to === 'a8') newRights.blackQueenSideRookMoved = true;
+    if (to === 'h8') newRights.blackKingSideRookMoved = true;
+
+    return newRights;
 };
 
 // ============================================================================
@@ -399,6 +528,8 @@ export const createNewGameState = () => {
         moveLog: [],
         gameStatus: 'active',
         moveCount: 0,
+        castlingRights: createCastlingRights(),
+        winner: null,
     };
 };
 
@@ -415,7 +546,7 @@ export const switchTurn = (gameState) => {
     return gameState;
 };
 
-export const logMove = (gameState, from, to, piece, capturedPiece = null) => {
+export const logMove = (gameState, from, to, piece, capturedPiece = null, specialNotation = null) => {
     gameState.moveLog.push({
         moveNumber: gameState.moveCount + 1, // move serial number
         from: from, // starting position
@@ -423,6 +554,7 @@ export const logMove = (gameState, from, to, piece, capturedPiece = null) => {
         piece: piece, // which piece moved
         capturedPiece: capturedPiece, // which piece was captured
         player: gameState.currentPlayer, // who made the move
+        notation: specialNotation || `${piece} ${from}-${to}`, // special notation for castling
     });
 
     gameState.moveCount++;
@@ -446,33 +578,46 @@ export const makeGameMove = (gameState, from, to) => {
         throw new Error(`not ${player}'s turn`);
     }
 
-    // check illegal move & king's safety
-    if (!isMoveLegalAndSafe(gameState.board, from, to)) throw new Error(`illegal move ${from} to ${to}`);
+    // check if it's castling
+    if (isCastlingMove(gameState.board, from, to)) {
+        const { color, side } = getCastlingDetails(from, to);
 
-    // move the piece on the board
-    movePiece(gameState.board, from, to);
+        // validate castling
+        if (!canCastle(gameState.board, color, side, gameState.castlingRights))
+            throw new Error(`illegal castling move: ${from} to ${to}`);
 
-    // update game status based on check
-    const opponentColor = gameState.currentPlayer === 'w' ? 'b' : 'w';
+        executeCastling(gameState.board, color, side);
 
-    if (isCheckmate(gameState.board, opponentColor)) {
+        const castlingNotation = side === 'kingSide' ? '0-0' : '0-0-0'; // log castling move with special notation
+        logMove(gameState, from, to, piece, null, castlingNotation);
+    } else {
+        // regular move validation
+        if (!isMoveLegalAndSafe(gameState.board, from, to, gameState.castlingRights))
+            throw new Error(`illegal move ${from} to ${to}`);
+
+        movePiece(gameState.board, from, to);
+
+        const captured = capturedPiece !== '   ' ? capturedPiece : null;
+        logMove(gameState, from, to, piece, captured);
+    }
+
+    gameState.castlingRights = updateCastlingRights(gameState.castlingRights, from, to, piece); // update castling right
+
+    switchTurn(gameState); // switch player's turn
+
+    const currentColor = gameState.currentPlayer; // update game status based on check, checkmate, stalemate
+
+    if (isCheckmate(gameState.board, currentColor)) {
         gameState.gameStatus = 'checkmate';
-        gameState.winner = gameState.currentPlayer;
-    } else if (isStalemate(gameState.board, opponentColor)) {
+        gameState.winner = currentColor === 'w' ? 'b' : 'w'; // previous player wins
+    } else if (isStalemate(gameState.board, currentColor)) {
         gameState.gameStatus = 'stalemate';
         gameState.winner = 'draw';
-    } else if (isKingInCheck(gameState.board, opponentColor)) {
+    } else if (isKingInCheck(gameState.board, currentColor)) {
         gameState.gameStatus = 'check';
     } else {
         gameState.gameStatus = 'active';
     }
-
-    // log the move
-    const captured = capturedPiece !== '   ' ? capturedPiece : null;
-    logMove(gameState, from, to, piece, captured);
-
-    // switch player's turn
-    switchTurn(gameState);
 
     return gameState;
 };

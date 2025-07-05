@@ -22,6 +22,11 @@ import {
     leaveKingInCheck,
     getAllPossibleMoves,
     isCheckmate,
+    createCastlingRights,
+    updateCastlingRights,
+    isCastlingMove,
+    canCastle,
+    executeCastling,
 } from './gameEngine.js';
 
 // ============================================================================
@@ -262,8 +267,41 @@ testCase('black king not in checkmate', isCheckmate(board, 'b') === false); // b
 testCase('White possible moves', getAllPossibleMoves(board, 'w').length === 0); // check white's possible moves
 
 // ============================================================================
+// CASTLING TESTS
+// ============================================================================
+
+console.log('\ntesting castling functionality');
+
+let castlingRights = createCastlingRights();
+testCase('castling rights created', castlingRights.whiteKingMoved === false); // initial castling rights
+
+castlingRights = updateCastlingRights(castlingRights, 'e1', null, 'wKG');
+testCase('king moved updates rights', castlingRights.whiteKingMoved === true); // rights updated when king moves
+
+board = initBoardPos();
+testCase('detect kingSide castling', isCastlingMove(board, 'e1', 'g1') === true); // kingSide castling detected
+testCase('detect queenSide castling', isCastlingMove(board, 'e8', 'c8') === true); // queenSide castling detected
+testCase('not castling move', isCastlingMove(board, 'e1', 'f1') === false); // regular king move
+testCase('castling blocked by pieces', canCastle(board, 'w', 'kingSide', castlingRights) === false); // path blocked
+
+movePiece(board, 'f1', 'f3');
+movePiece(board, 'g1', 'g3');
+showBoard(board);
+castlingRights = createCastlingRights();
+testCase('castling with clear path', canCastle(board, 'w', 'kingSide', castlingRights) === true); // clear path allows castling
+
+board = initBoardPos();
+movePiece(board, 'f1', 'f3');
+movePiece(board, 'g1', 'g3');
+showBoard(board);
+executeCastling(board, 'w', 'kingSide');
+testCase('king moved to g1', board[7][6] === 'wKG'); // king position after castling
+testCase('rook moved to f1', board[7][5] === 'wRK'); // rook position after castling
+
+// ============================================================================
 // TEST RESULTS
 // ============================================================================
+
 console.log('\n\nTest Results:');
 console.log(`Total: ${testResults.total} | Passed: ${testResults.passed} | Failed: ${testResults.failed}`);
 console.log(`Success Rate: ${((testResults.passed / testResults.total) * 100).toFixed(1)}%\n\n`);
