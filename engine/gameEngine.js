@@ -281,3 +281,92 @@ export const makeMove = (board, from, to) => {
     if (!isMoveLegal(board, from, to)) throw new Error(`illegal move: ${from} to ${to}`);
     return movePiece(board, from, to);
 };
+
+// ============================================================================
+// GAME STATE MANAGEMENT
+// ============================================================================
+
+export const createNewGameState = () => {
+    return {
+        board: initBoardPos(),
+        currentPlayer: 'w',
+        moveLog: [],
+        gameStatus: 'active',
+        moveCount: 0,
+    };
+};
+
+export const getCurrentPlayer = (gameState) => {
+    return gameState.currentPlayer; // return 'w' or 'b'
+};
+
+export const switchTurn = (gameState) => {
+    if (gameState.currentPlayer === 'w') {
+        gameState.currentPlayer = 'b';
+    } else {
+        gameState.currentPlayer = 'w';
+    }
+    return gameState;
+};
+
+export const logMove = (gameState, from, to, piece, capturedPiece = null) => {
+    gameState.moveLog.push({
+        moveNumber: gameState.moveCount + 1, // move serial number
+        from: from, // starting position
+        to: to, // ending position
+        piece: piece, // which piece moved
+        capturedPiece: capturedPiece, // which piece was captured
+        player: gameState.currentPlayer, // who made the move
+    });
+
+    gameState.moveCount++;
+    return gameState;
+};
+
+// main function to make a move in game
+export const makeGameMove = (gameState, from, to) => {
+    // convert the position
+    const [fromRow, fromCol] = algebraicToIndex(from);
+    const [toRow, toCol] = algebraicToIndex(to);
+
+    // get involved pieces
+    const piece = gameState.board[fromRow][fromCol];
+    const capturedPiece = gameState.board[toRow][toCol];
+
+    if (piece === '   ') throw new Error('no piece at the starting position'); // check if there is a piece to move
+
+    //  player turn check
+    if (piece[0] !== gameState.currentPlayer) {
+        const player = gameState.currentPlayer === 'w' ? 'white' : 'black';
+        throw new Error(`not ${player}'s turn`);
+    }
+
+    // check illegal move
+    if (!isMoveLegal(gameState.board, from, to)) throw new Error(`illegal move ${from} to ${to}`);
+
+    // move the piece on the board
+    movePiece(gameState.board, from, to);
+
+    // log the move
+    const captured = capturedPiece !== '   ' ? capturedPiece : null;
+    logMove(gameState, from, to, piece, captured);
+
+    // switch player's turn
+    switchTurn(gameState);
+
+    return gameState;
+};
+
+// get the latest move
+export const getLastMove = (gameState) => {
+    if (gameState.moveLog.length > 0) {
+        return gameState.moveLog[gameState.moveLog.length - 1];
+    } else {
+        return null;
+    }
+};
+
+// get the full log
+export const getMoveLog = (gameState) => {
+    return gameState.moveLog;
+};

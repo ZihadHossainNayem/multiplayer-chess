@@ -11,6 +11,11 @@ import {
     isKnightMoveLegal,
     isKingMoveLegal,
     isMoveLegal,
+    createNewGameState,
+    getCurrentPlayer,
+    getMoveLog,
+    getLastMove,
+    makeGameMove,
 } from './gameEngine.js';
 
 // ============================================================================
@@ -176,6 +181,23 @@ testCase('global case 3', isMoveLegal(board, 'a1', 'a3') === false); // blocked 
 testCase('global case 4', isMoveLegal(board, 'f1', 'a6') === false); // blocked bishop
 testCase('global case 5', isMoveLegal(board, 'e1', 'e2') === false); // blocked king
 testCase('global case 6', isMoveLegal(board, 'h3', 'h4') === false); // no piece at position
+
+// ============================================================================
+// GAME STATE TESTS
+// ============================================================================
+
+console.log('\ntesting game state');
+const game = createNewGameState();
+console.log('Current player:', getCurrentPlayer(game));
+
+makeGameMove(game, 'e2', 'e4'); // white moves
+console.log('After white move:', getCurrentPlayer(game));
+
+makeGameMove(game, 'e7', 'e5'); // black moves
+console.log('After black move:', getCurrentPlayer(game));
+
+console.log('last move', getLastMove(game));
+console.log('Move log:', getMoveLog(game));
 
 // ============================================================================
 // TEST RESULTS
