@@ -137,15 +137,15 @@ const isPathClear = (board, fromRow, fromCol, toRow, toCol) => {
 // ============================================================================
 
 const isStraightLineMove = (fromRow, fromCol, toRow, toCol) => {
-    const isVertical = fromCol === toCol && fromRow !== toRow;
-    const isHorizontal = fromRow === toRow && fromCol !== toCol;
+    const isVertical = fromCol === toCol && fromRow !== toRow; // same col, diff row
+    const isHorizontal = fromRow === toRow && fromCol !== toCol; // same row, diff col
     return isVertical || isHorizontal;
 };
 
 const isDiagonalLineMove = (fromRow, fromCol, toRow, toCol) => {
-    const rowDiff = Math.abs(toRow - fromRow);
-    const colDiff = Math.abs(toCol - fromCol);
-    return rowDiff === colDiff && rowDiff > 0;
+    const rowDiff = Math.abs(toRow - fromRow); // vertical distance
+    const colDiff = Math.abs(toCol - fromCol); // horizontal distance
+    return rowDiff === colDiff && rowDiff > 0; // needs equal distances for diagonal move
 };
 
 // ============================================================================
@@ -215,6 +215,20 @@ export const isQueenMoveLegal = (board, from, to) => {
 
     if (!canMoveStraight && !canMoveDiagonal) return false;
     if (!isPathClear(board, fromRow, fromCol, toRow, toCol)) return false;
+
+    return canCaptureOrMove(targetBlock, color);
+};
+
+export const isKnightMoveLegal = (board, from, to) => {
+    const knightMoveData = validatePieceMove(board, from, to, 'KN');
+    if (!knightMoveData) return false;
+    const { fromRow, fromCol, toRow, toCol, color, targetBlock } = knightMoveData;
+
+    const rowDiff = Math.abs(toRow - fromRow);
+    const colDiff = Math.abs(toCol - fromCol);
+
+    const isLShapeMove = (rowDiff === 2 && colDiff === 1) || (rowDiff === 1 && colDiff === 2); // l shape knight move
+    if (!isLShapeMove) return false;
 
     return canCaptureOrMove(targetBlock, color);
 };

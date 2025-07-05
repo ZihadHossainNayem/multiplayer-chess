@@ -8,6 +8,7 @@ import {
     isRookMoveLegal,
     isBishopMoveLegal,
     isQueenMoveLegal,
+    isKnightMoveLegal,
 } from './gameEngine.js';
 
 // ============================================================================
@@ -120,6 +121,25 @@ movePiece(board, 'g7', 'g6');
 showBoard(board);
 testCase('queen case 6', isQueenMoveLegal(board, 'd3', 'g6') === true); // valid capture
 testCase('queen case 7', isQueenMoveLegal(board, 'd3', 'e5') === false); // invalid capture
+
+// ============================================================================
+// KNIGHT TESTS CASE
+// ============================================================================
+
+console.log('\ntesting knight moves');
+board = initBoardPos();
+movePiece(board, 'b1', 'c3');
+showBoard(board);
+
+testCase('knight case 1', isKnightMoveLegal(board, 'c3', 'e4') === true); // valid L-shape move
+testCase('knight case 2', isKnightMoveLegal(board, 'c3', 'a4') === true); // valid L-shape move
+testCase('knight case 3', isKnightMoveLegal(board, 'c3', 'd5') === true); // valid L-shape move
+testCase('knight case 4', isKnightMoveLegal(board, 'c3', 'c5') === false); // invalid straight move
+testCase('knight case 5', isKnightMoveLegal(board, 'c3', 'd4') === false); // invalid diagonal move
+movePiece(board, 'e7', 'e4');
+showBoard(board);
+testCase('knight case 6', isKnightMoveLegal(board, 'c3', 'e4') === true); // valid capture
+testCase('knight case 7', isKnightMoveLegal(board, 'c3', 'e2') === false); // invalid capture
 
 // ============================================================================
 // TEST RESULTS
