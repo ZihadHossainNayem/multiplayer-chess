@@ -1,3 +1,7 @@
+// ============================================================================
+// BOARD INITIALIZATION & DISPLAY
+// ============================================================================
+
 export const initBoardPosition = () => {
     return [
         ['bRK', 'bKN', 'bBS', 'bQN', 'bKG', 'bBS', 'bKN', 'bRK'], // black piece
@@ -17,6 +21,10 @@ export const showBoard = (board) => {
         console.log(row.join(' | '));
     }
 };
+
+// ============================================================================
+// COORDINATE CONVERSION
+// ============================================================================
 
 export const algebraicToIndex = (position) => {
     if (!position || position.length !== 2) {
@@ -47,34 +55,88 @@ export const indexToAlgebraic = (row, col) => {
     return colChar + rowChar;
 };
 
+// ============================================================================
+// PIECE MOVEMENT
+// ============================================================================
+
 export const movePiece = (board, from, to) => {
     const [fromRow, fromCol] = algebraicToIndex(from);
     const [toRow, toCol] = algebraicToIndex(to);
 
-    // piece at the starting position
-    const piece = board[fromRow][fromCol];
+    const piece = board[fromRow][fromCol]; // piece at the starting position
     if (piece === '   ') {
         throw new Error('no piece at starting position');
     }
 
-    // piece to new position
-    board[toRow][toCol] = piece;
+    board[toRow][toCol] = piece; // piece to new position
 
-    // clear its previous position
-    board[fromRow][fromCol] = '   ';
+    board[fromRow][fromCol] = '   '; // clear its previous position
 
     return board;
 };
 
-export const isPawnMoveLegal = (board, from, to) => {
+// ============================================================================
+// MOVE VALIDATIONS
+// ============================================================================
+
+export const validatePieceMove = (board, from, to, pieceType) => {
     const [fromRow, fromCol] = algebraicToIndex(from);
     const [toRow, toCol] = algebraicToIndex(to);
 
     const piece = board[fromRow][fromCol];
-    if (piece === '   ' || piece.substring(1) !== 'PN') {
-        return false;
+    if (piece === '   ' || piece.substring(1) !== pieceType) {
+        return null; // invalid piece
     }
-    const color = piece[0]; // 'w' or 'b'
+
+    const color = piece[0];
+    return {
+        fromRow,
+        fromCol,
+        toRow,
+        toCol,
+        piece,
+        color,
+        targetPiece: board[toRow][toCol],
+    };
+};
+
+export const canCaptureOrMove = (targetPiece, color) => {
+    if (targetPiece === '   ') return true; // can move to empty square
+    if (targetPiece[0] !== color) return true; /// can capture opponent's piece
+
+    return false; // can't capture own piece
+};
+
+export const isPathClear = (board, fromRow, fromCol, toRow, toCol) => {
+    // move direction -1,0,1
+    const stepRow = Math.sign(toRow - fromRow);
+    const stepCol = Math.sign(toCol - fromCol);
+
+    // checking from first block after the starting position
+    let row = fromRow + stepRow;
+    let col = fromCol + stepCol;
+
+    // check each block along the path until target destination
+    while (row !== toRow || col !== toCol) {
+        if (board[row][col] !== '   ') {
+            return false; // blocked if path is not empty
+        }
+        row += stepRow;
+        col += stepCol;
+    }
+
+    return true;
+};
+
+// ============================================================================
+// PIECE-SPECIFIC MOVE VALIDATION
+// ============================================================================
+
+export const isPawnMoveLegal = (board, from, to) => {
+    const pawnMoveData = validatePieceMove(board, from, to, 'PN');
+    if (!pawnMoveData) return false;
+
+    const { fromRow, fromCol, toRow, toCol, color, targetPiece } = pawnMoveData;
 
     const direction = color === 'w' ? -1 : 1; // white move up -1, black moves down +1
     const startRow = color === 'w' ? 6 : 1;
@@ -82,8 +144,8 @@ export const isPawnMoveLegal = (board, from, to) => {
     const diffRow = toRow - fromRow;
     const diffCol = toCol - fromCol;
 
-    // pawn normal move: 1 step forward, (to) must be empty
-    if (diffCol === 0 && diffRow === direction && board[toRow][toCol] === '   ') {
+    // pawn normal move: 1 step forward
+    if (diffCol === 0 && diffRow === direction && targetPiece === '   ') {
         return true;
     }
 
@@ -93,18 +155,13 @@ export const isPawnMoveLegal = (board, from, to) => {
         diffRow === 2 * direction &&
         fromRow === startRow &&
         board[fromRow + direction][fromCol] === '   ' &&
-        board[toRow][toCol] === '   '
+        targetPiece === '   '
     ) {
         return true;
     }
 
     // capture move: diagonal 1 step, opponent piece present
-    if (
-        Math.abs(diffCol) === 1 && // diagonal to left or right
-        diffRow === direction &&
-        board[toRow][toCol] !== '   ' &&
-        board[toRow][toCol][0] !== color // opponents piece
-    ) {
+    if (Math.abs(diffCol) === 1 && diffRow === direction && targetPiece !== '   ' && targetPiece[0] !== color) {
         return true;
     }
 
@@ -112,14 +169,10 @@ export const isPawnMoveLegal = (board, from, to) => {
 };
 
 export const isRookMoveLegal = (board, from, to) => {
-    const [fromRow, fromCol] = algebraicToIndex(from);
-    const [toRow, toCol] = algebraicToIndex(to);
+    const rookMoveData = validatePieceMove(board, from, to, 'RK');
+    if (!rookMoveData) return false;
 
-    const piece = board[fromRow][fromCol];
-    if (piece === '   ' || piece.substring(1) !== 'RK') {
-        return false;
-    }
-    const color = piece[0];
+    const { fromRow, fromCol, toRow, toCol, color, targetPiece } = rookMoveData;
 
     // rook have to move in straight line
     const isVerticalMove = fromCol === toCol && fromRow !== toRow;
@@ -127,29 +180,7 @@ export const isRookMoveLegal = (board, from, to) => {
 
     if (!isVerticalMove && !isHorizontalMove) return false;
 
-    // direction of movement
-    const stepRow = Math.sign(toRow - fromRow);
-    const stepCol = Math.sign(toCol - fromCol);
+    if (!isPathClear(board, fromRow, fromCol, toRow, toCol)) return false; // check if path is clear
 
-    // path blockage check, rook can't jump over piece
-    let row = fromRow + stepRow;
-    let col = fromCol + stepCol;
-
-    while (row !== toRow || col !== toCol) {
-        if (board[row][col] !== '   ') {
-            return false; // blocked
-        }
-        row += stepRow;
-        col += stepCol;
-    }
-
-    const targetPiece = board[toRow][toCol];
-
-    // move
-    if (targetPiece === '   ') return true;
-
-    // capture
-    if (targetPiece[0] !== color) return true;
-
-    return false;
+    return canCaptureOrMove(targetPiece, color); // check if destination is valid (empty or can capture)
 };
