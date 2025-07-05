@@ -9,6 +9,7 @@ import {
     isBishopMoveLegal,
     isQueenMoveLegal,
     isKnightMoveLegal,
+    isKingMoveLegal,
 } from './gameEngine.js';
 
 // ============================================================================
@@ -140,6 +141,25 @@ movePiece(board, 'e7', 'e4');
 showBoard(board);
 testCase('knight case 6', isKnightMoveLegal(board, 'c3', 'e4') === true); // valid capture
 testCase('knight case 7', isKnightMoveLegal(board, 'c3', 'e2') === false); // invalid capture
+
+// ============================================================================
+// KING TESTS CASE
+// ============================================================================
+
+console.log('\ntesting king moves');
+board = initBoardPos();
+movePiece(board, 'e2', 'e4');
+movePiece(board, 'e1', 'e2');
+showBoard(board);
+
+testCase('king case 1', isKingMoveLegal(board, 'e2', 'e3') === true); // valid one block forward
+testCase('king case 2', isKingMoveLegal(board, 'e2', 'd3') === true); // valid one block diagonal
+testCase('king case 4', isKingMoveLegal(board, 'e2', 'e4') === false); // invalid two block forward
+testCase('king case 5', isKingMoveLegal(board, 'e2', 'c4') === false); // invalid knight-like move
+movePiece(board, 'd7', 'd3');
+showBoard(board);
+testCase('king case 6', isKingMoveLegal(board, 'e2', 'd3') === true); // valid capture
+testCase('king case 7', isKingMoveLegal(board, 'e2', 'd1') === false); // invalid capture (own piece)
 
 // ============================================================================
 // TEST RESULTS

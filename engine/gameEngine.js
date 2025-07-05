@@ -232,3 +232,17 @@ export const isKnightMoveLegal = (board, from, to) => {
 
     return canCaptureOrMove(targetBlock, color);
 };
+
+export const isKingMoveLegal = (board, from, to) => {
+    const kingMoveData = validatePieceMove(board, from, to, 'KG');
+    if (!kingMoveData) return false;
+    const { fromRow, fromCol, toRow, toCol, color, targetBlock } = kingMoveData;
+
+    const rowDiff = Math.abs(toRow - fromRow);
+    const colDiff = Math.abs(toCol - fromCol);
+
+    const isOneBlockMove = rowDiff <= 1 && colDiff <= 1 && (rowDiff > 0 || colDiff > 0); // move one block any direction
+    if (!isOneBlockMove) return false;
+
+    return canCaptureOrMove(targetBlock, color);
+};
