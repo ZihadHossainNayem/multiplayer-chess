@@ -16,10 +16,23 @@ export const initBoardPosition = () => {
 };
 
 export const showBoard = (board) => {
-    console.log('\ncurrent board:');
-    for (let row of board) {
-        console.log(row.join(' | '));
+    console.log('\n    current board:');
+
+    console.log('       0     1     2     3     4     5     6     7');
+    console.log('    +-----+-----+-----+-----+-----+-----+-----+-----+');
+
+    for (let i = 0; i < board.length; i++) {
+        const rowNumber = 8 - i; // chess notation (8-1)
+        const rowIndex = i; // array index (0-7)
+
+        console.log(`  ${rowNumber} | ${board[i].join(' | ')} | ${rowIndex}`);
+
+        if (i < board.length - 1) {
+            console.log('    +-----+-----+-----+-----+-----+-----+-----+-----+');
+        }
     }
+    console.log('    +-----+-----+-----+-----+-----+-----+-----+-----+');
+    console.log('      a      b     c     d     e     f     g     h  ');
 };
 
 // ============================================================================
