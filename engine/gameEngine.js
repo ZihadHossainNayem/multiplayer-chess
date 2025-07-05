@@ -345,6 +345,50 @@ export const isMoveLegalAndSafe = (board, from, to) => {
 };
 
 // ============================================================================
+// CHECKMATE DETECTION
+// ============================================================================
+
+export const getAllPossibleMoves = (board, color) => {
+    const moves = [];
+
+    for (let fromRow = 0; fromRow < 8; fromRow++) {
+        for (let fromCol = 0; fromCol < 8; fromCol++) {
+            const piece = board[fromRow][fromCol];
+
+            if (piece === '   ' || piece[0] !== color) continue;
+
+            const from = indexToAlgebraic(fromRow, fromCol);
+
+            // try all possible destination blocks
+            for (let toRow = 0; toRow < 8; toRow++) {
+                for (let toCol = 0; toCol < 8; toCol++) {
+                    const to = indexToAlgebraic(toRow, toCol);
+
+                    // add it to the list if move is legal
+                    if (isMoveLegalAndSafe(board, from, to)) {
+                        moves.push({ from, to, piece });
+                    }
+                }
+            }
+        }
+    }
+
+    return moves;
+};
+
+export const isCheckmate = (board, color) => {
+    if (!isKingInCheck(board, color)) return false; // is the king in check
+    const possibleMoves = getAllPossibleMoves(board, color); // check for legal move to escape
+    return possibleMoves.length === 0; // no legal move exits, checkmate
+};
+
+export const isStalemate = (board, color) => {
+    if (isKingInCheck(board, color)) return false; // king not in check, but no legal moves
+    const possibleMoves = getAllPossibleMoves(board, color);
+    return possibleMoves.length === 0;
+};
+
+// ============================================================================
 // GAME STATE MANAGEMENT
 // ============================================================================
 
@@ -410,7 +454,14 @@ export const makeGameMove = (gameState, from, to) => {
 
     // update game status based on check
     const opponentColor = gameState.currentPlayer === 'w' ? 'b' : 'w';
-    if (isKingInCheck(gameState.board, opponentColor)) {
+
+    if (isCheckmate(gameState.board, opponentColor)) {
+        gameState.gameStatus = 'checkmate';
+        gameState.winner = gameState.currentPlayer;
+    } else if (isStalemate(gameState.board, opponentColor)) {
+        gameState.gameStatus = 'stalemate';
+        gameState.winner = 'draw';
+    } else if (isKingInCheck(gameState.board, opponentColor)) {
         gameState.gameStatus = 'check';
     } else {
         gameState.gameStatus = 'active';

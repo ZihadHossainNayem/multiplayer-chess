@@ -20,6 +20,8 @@ import {
     canOpponentCapture,
     isKingInCheck,
     leaveKingInCheck,
+    getAllPossibleMoves,
+    isCheckmate,
 } from './gameEngine.js';
 
 // ============================================================================
@@ -240,6 +242,24 @@ movePiece(board, 'd1', 'h5');
 showBoard(board);
 
 testCase('moving pawn would expose king', leaveKingInCheck(board, 'f7', 'f6', 'b') === true);
+
+// ============================================================================
+// CHECKMATE TESTS
+// ============================================================================
+
+console.log('testing checkmate');
+board = initBoardPos();
+
+// fool's mate
+movePiece(board, 'f2', 'f3');
+movePiece(board, 'e7', 'e5');
+movePiece(board, 'g2', 'g4');
+movePiece(board, 'd8', 'h4');
+console.log('\nfools mate position');
+showBoard(board);
+testCase('white king in checkmate', isCheckmate(board, 'w') === true); // white king in checkmate
+testCase('black king not in checkmate', isCheckmate(board, 'b') === false); // black king is not in checkmate
+testCase('White possible moves', getAllPossibleMoves(board, 'w').length === 0); // check white's possible moves
 
 // ============================================================================
 // TEST RESULTS
