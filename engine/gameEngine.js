@@ -27,16 +27,12 @@ export const showBoard = (board) => {
 // ============================================================================
 
 export const algebraicToIndex = (position) => {
-    if (!position || position.length !== 2) {
-        throw new Error('invalid position format');
-    }
+    if (!position || position.length !== 2) throw new Error('invalid position format');
 
     const colChar = position[0];
     const rowChar = position[1];
 
-    if (colChar < 'a' || colChar > 'h' || rowChar < '1' || rowChar > '8') {
-        throw new Error('position out of bound');
-    }
+    if (colChar < 'a' || colChar > 'h' || rowChar < '1' || rowChar > '8') throw new Error('position out of bound');
 
     const col = colChar.charCodeAt(0) - 'a'.charCodeAt(0); // 'a'-'h' to 0-7
     const row = 8 - parseInt(rowChar); // '1'-'8' to 7-0
@@ -45,9 +41,7 @@ export const algebraicToIndex = (position) => {
 };
 
 export const indexToAlgebraic = (row, col) => {
-    if (row < 0 || row > 7 || col < 0 || col > 7) {
-        throw new Error('index out of bound');
-    }
+    if (row < 0 || row > 7 || col < 0 || col > 7) throw new Error('index out of bound');
 
     const colChar = String.fromCharCode('a'.charCodeAt(0) + col); // 0-7 to 'a'-'h'
     const rowChar = 8 - row; // 7-0 to '1'-'8'
@@ -64,9 +58,7 @@ export const movePiece = (board, from, to) => {
     const [toRow, toCol] = algebraicToIndex(to);
 
     const piece = board[fromRow][fromCol]; // piece at the starting position
-    if (piece === '   ') {
-        throw new Error('no piece at starting position');
-    }
+    if (piece === '   ') throw new Error('no piece at starting position');
 
     board[toRow][toCol] = piece; // piece to new position
 
@@ -84,9 +76,7 @@ export const validatePieceMove = (board, from, to, pieceType) => {
     const [toRow, toCol] = algebraicToIndex(to);
 
     const piece = board[fromRow][fromCol];
-    if (piece === '   ' || piece.substring(1) !== pieceType) {
-        return null; // invalid piece
-    }
+    if (piece === '   ' || piece.substring(1) !== pieceType) return null; // invalid piece
 
     const color = piece[0];
     return {
@@ -118,9 +108,8 @@ export const isPathClear = (board, fromRow, fromCol, toRow, toCol) => {
 
     // check each block along the path until target destination
     while (row !== toRow || col !== toCol) {
-        if (board[row][col] !== '   ') {
-            return false; // blocked if path is not empty
-        }
+        if (board[row][col] !== '   ') return false; // blocked if path is not empty
+
         row += stepRow;
         col += stepCol;
     }
@@ -145,9 +134,7 @@ export const isPawnMoveLegal = (board, from, to) => {
     const diffCol = toCol - fromCol;
 
     // pawn normal move: 1 step forward
-    if (diffCol === 0 && diffRow === direction && targetPiece === '   ') {
-        return true;
-    }
+    if (diffCol === 0 && diffRow === direction && targetPiece === '   ') return true;
 
     // first pawn move: 2 steps forward
     if (
@@ -156,14 +143,12 @@ export const isPawnMoveLegal = (board, from, to) => {
         fromRow === startRow &&
         board[fromRow + direction][fromCol] === '   ' &&
         targetPiece === '   '
-    ) {
+    )
         return true;
-    }
 
     // capture move: diagonal 1 step, opponent piece present
-    if (Math.abs(diffCol) === 1 && diffRow === direction && targetPiece !== '   ' && targetPiece[0] !== color) {
+    if (Math.abs(diffCol) === 1 && diffRow === direction && targetPiece !== '   ' && targetPiece[0] !== color)
         return true;
-    }
 
     return false;
 };
@@ -180,7 +165,26 @@ export const isRookMoveLegal = (board, from, to) => {
 
     if (!isVerticalMove && !isHorizontalMove) return false;
 
-    if (!isPathClear(board, fromRow, fromCol, toRow, toCol)) return false; // check if path is clear
+    if (!isPathClear(board, fromRow, fromCol, toRow, toCol)) return false;
 
-    return canCaptureOrMove(targetPiece, color); // check if destination is valid (empty or can capture)
+    return canCaptureOrMove(targetPiece, color);
+};
+
+export const isBishopMoveLegal = (board, from, to) => {
+    const bishopMoveData = validatePieceMove(board, from, to, 'BS');
+    if (!bishopMoveData) return false;
+
+    const { fromRow, fromCol, toRow, toCol, color, targetPiece } = bishopMoveData;
+
+    // using math.abs because bishop can move in any diagonal direction
+    const diffRow = Math.abs(toRow - fromRow);
+    const diffCol = Math.abs(toCol - fromCol);
+
+    const isDiagonalMove = diffRow === diffCol && diffRow > 0;
+
+    if (!isDiagonalMove) return false;
+
+    if (!isPathClear(board, fromRow, fromCol, toRow, toCol)) return false;
+
+    return canCaptureOrMove(targetPiece, color);
 };

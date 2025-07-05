@@ -6,7 +6,12 @@ import {
     movePiece,
     isPawnMoveLegal,
     isRookMoveLegal,
+    isBishopMoveLegal,
 } from './gameEngine.js';
+
+// ============================================================================
+// INITIAL SETUP & BASIC FUNCTIONALITY TESTS
+// ============================================================================
 
 let board = initBoardPosition();
 showBoard(board);
@@ -14,31 +19,46 @@ showBoard(board);
 console.log(algebraicToIndex('e2'));
 console.log(indexToAlgebraic(6, 4));
 
-// piece moving
+const testCase = (testName, condition) => {
+    console.log(`${testName}: ${condition ? 'pass' : 'fail'}`);
+};
+
+// ============================================================================
+// BASIC PIECE MOVEMENT TEST
+// ============================================================================
+
 console.log('\nmoving piece from d2 to d4');
 movePiece(board, 'd2', 'd3');
 showBoard(board);
+
+// ============================================================================
+// PAWN TESTS CASE
+// ============================================================================
 
 board = initBoardPosition();
 showBoard(board);
 
 console.log('\ntesting pawn moves');
 
-// pawn move forward one step
-console.log(isPawnMoveLegal(board, 'd2', 'd3') === true ? 'pawn case 1: pass' : 'pawn case 1: fail');
+// move forward one step
+testCase('pawn case 1', isPawnMoveLegal(board, 'd2', 'd3') === true);
 
-// pawn move forward two steps
-console.log(isPawnMoveLegal(board, 'e2', 'e4') === true ? 'pawn case 2: pass' : 'pawn case 2: fail');
+// move forward two steps
+testCase('pawn case 2', isPawnMoveLegal(board, 'e2', 'e4') === true);
 
-// illegal pawn move
-console.log(isPawnMoveLegal(board, 'f2', 'f5') === false ? 'pawn case 3: pass' : 'pawn case 3: fail');
+// illegal move
+testCase('pawn case 3', isPawnMoveLegal(board, 'f2', 'f5') === false);
 
-// pawn capture move
+// capture move
 movePiece(board, 'f7', 'f3');
-console.log(isPawnMoveLegal(board, 'e2', 'f3') === true ? 'pawn case 4: pass' : 'pawn case 4: fail');
+testCase('pawn case 4', isPawnMoveLegal(board, 'e2', 'f3') === true);
 
 // invalid capture
-console.log(isPawnMoveLegal(board, 'e2', 'd3') === false ? 'pawn case 5: pass' : 'pawn case 5: fail');
+testCase('pawn case 5', isPawnMoveLegal(board, 'e2', 'd3') === false);
+
+// ============================================================================
+// ROOK TESTS CASE
+// ============================================================================
 
 console.log('\ntesting rook moves');
 board = initBoardPosition();
@@ -48,23 +68,53 @@ movePiece(board, 'h2', 'h4');
 movePiece(board, 'h4', 'h5');
 showBoard(board);
 
-// rook moves up
-console.log(isRookMoveLegal(board, 'h1', 'h3') === true ? 'rook case 1: pass' : 'rook case 1: fail');
+// moves up
+testCase('rook case 1', isRookMoveLegal(board, 'h1', 'h3') === true);
 
-// rook block by own piece
-console.log(isRookMoveLegal(board, 'h1', 'f1') === false ? 'rook case 2: pass' : 'rook case 2: fail');
+// blocked by own piece
+testCase('rook case 2', isRookMoveLegal(board, 'h1', 'f1') === false);
 
 // illegal diagonal move
-console.log(isRookMoveLegal(board, 'h1', 'g2') === false ? 'rook case 3: pass' : 'rook case 3:fail');
+testCase('rook case 3', isRookMoveLegal(board, 'h1', 'g2') === false);
 
 // capture test
 movePiece(board, 'h1', 'h3');
 movePiece(board, 'g8', 'h6');
 movePiece(board, 'h5', 'g3');
 showBoard(board);
-console.log(isRookMoveLegal(board, 'h3', 'h6') === true ? 'rook case 4: pass' : 'rook case 4: fail');
+testCase('rook case 4', isRookMoveLegal(board, 'h3', 'h6') === true);
 
 // invalid capture test
 movePiece(board, 'f1', 'h7');
 showBoard(board);
-console.log(isRookMoveLegal(board, 'h3', 'h7') === false ? 'rook case 5: pass' : 'rook case 5: fail');
+testCase('rook case 5', isRookMoveLegal(board, 'h3', 'h7') === false);
+
+// ============================================================================
+// BISHOP TESTS CASE
+// ============================================================================
+
+console.log('\ntesting bishop moves');
+board = initBoardPosition();
+showBoard(board);
+
+// setup: clear path for bishop
+movePiece(board, 'e2', 'e4');
+showBoard(board);
+
+// valid diagonal move
+testCase('bishop case 1', isBishopMoveLegal(board, 'f1', 'b5') === true);
+
+// invalid horizontal move
+testCase('bishop case 2', isBishopMoveLegal(board, 'f1', 'd1') === false);
+
+// capture test setup
+movePiece(board, 'b7', 'b5');
+showBoard(board);
+testCase('bishop case 3', isBishopMoveLegal(board, 'f1', 'b5') === true);
+
+// invalid capture test (own piece)
+movePiece(board, 'e4', 'e2');
+showBoard(board);
+testCase('bishop case 4', isBishopMoveLegal(board, 'f1', 'e2') === false);
+
+console.log('\ntests completed!');
