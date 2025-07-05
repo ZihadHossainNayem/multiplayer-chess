@@ -283,6 +283,68 @@ export const makeMove = (board, from, to) => {
 };
 
 // ============================================================================
+// KING DETECTION AND SAFETY
+// ============================================================================
+
+export const findKing = (board, color) => {
+    // look through every block on the board
+    for (let row = 0; row < 8; row++) {
+        for (let col = 0; col < 8; col++) {
+            const piece = board[row][col];
+            if (piece === color + 'KG') return [row, col]; // king position
+        }
+    }
+    return null;
+};
+
+export const canOpponentCapture = (board, row, col, byColor) => {
+    const targetBlock = indexToAlgebraic(row, col);
+
+    for (let fromRow = 0; fromRow < 8; fromRow++) {
+        for (let fromCol = 0; fromCol < 8; fromCol++) {
+            const piece = board[fromRow][fromCol];
+
+            if (piece === '   ' || piece[0] !== byColor) continue; // skip empty or wrong color pieces
+
+            const fromBlock = indexToAlgebraic(fromRow, fromCol);
+
+            if (isMoveLegal(board, fromBlock, targetBlock)) return true; // can this piece attack the target square
+        }
+    }
+    return false;
+};
+
+export const isKingInCheck = (board, color) => {
+    const kingPosition = findKing(board, color);
+    if (!kingPosition) return false;
+
+    const [kingRow, kingCol] = kingPosition;
+    const opponentColor = color === 'w' ? 'b' : 'w';
+
+    return canOpponentCapture(board, kingRow, kingCol, opponentColor); // is king under attack
+};
+
+// illegal move that expose king
+export const leaveKingInCheck = (board, from, to, playerColor) => {
+    const tempBoard = board.map((row) => [...row]); // temporary copy of board
+    movePiece(tempBoard, from, to); // make move temporary board
+    return isKingInCheck(tempBoard, playerColor);
+};
+
+export const isMoveLegalAndSafe = (board, from, to) => {
+    if (!isMoveLegal(board, from, to)) return false; // illegal move check
+
+    // king expose check
+    const [fromRow, fromCol] = algebraicToIndex(from);
+    const piece = board[fromRow][fromCol];
+    const playerColor = piece[0];
+
+    if (leaveKingInCheck(board, from, to, playerColor)) return false;
+
+    return true; // move legal and safe
+};
+
+// ============================================================================
 // GAME STATE MANAGEMENT
 // ============================================================================
 
@@ -325,27 +387,34 @@ export const logMove = (gameState, from, to, piece, capturedPiece = null) => {
 
 // main function to make a move in game
 export const makeGameMove = (gameState, from, to) => {
-    // convert the position
+    // get position and pieces
     const [fromRow, fromCol] = algebraicToIndex(from);
     const [toRow, toCol] = algebraicToIndex(to);
-
-    // get involved pieces
     const piece = gameState.board[fromRow][fromCol];
     const capturedPiece = gameState.board[toRow][toCol];
 
-    if (piece === '   ') throw new Error('no piece at the starting position'); // check if there is a piece to move
+    // check if there is a piece to move
+    if (piece === '   ') throw new Error('no piece at the starting position');
 
-    //  player turn check
+    //  check player turn check
     if (piece[0] !== gameState.currentPlayer) {
         const player = gameState.currentPlayer === 'w' ? 'white' : 'black';
         throw new Error(`not ${player}'s turn`);
     }
 
-    // check illegal move
-    if (!isMoveLegal(gameState.board, from, to)) throw new Error(`illegal move ${from} to ${to}`);
+    // check illegal move & king's safety
+    if (!isMoveLegalAndSafe(gameState.board, from, to)) throw new Error(`illegal move ${from} to ${to}`);
 
     // move the piece on the board
     movePiece(gameState.board, from, to);
+
+    // update game status based on check
+    const opponentColor = gameState.currentPlayer === 'w' ? 'b' : 'w';
+    if (isKingInCheck(gameState.board, opponentColor)) {
+        gameState.gameStatus = 'check';
+    } else {
+        gameState.gameStatus = 'active';
+    }
 
     // log the move
     const captured = capturedPiece !== '   ' ? capturedPiece : null;

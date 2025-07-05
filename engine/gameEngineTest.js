@@ -16,6 +16,10 @@ import {
     getMoveLog,
     getLastMove,
     makeGameMove,
+    findKing,
+    canOpponentCapture,
+    isKingInCheck,
+    leaveKingInCheck,
 } from './gameEngine.js';
 
 // ============================================================================
@@ -198,6 +202,44 @@ console.log('After black move:', getCurrentPlayer(game));
 
 console.log('last move', getLastMove(game));
 console.log('Move log:', getMoveLog(game));
+
+// ============================================================================
+// CHECK DETECTION TESTS
+// ============================================================================
+
+board = initBoardPos();
+console.log('\ntesting findKing function');
+testCase('find white king', findKing(board, 'w') !== null); // find king
+testCase('find black king', findKing(board, 'b') !== null); // find king
+
+console.log('\ntesting canOpponentCapture function');
+board = initBoardPos();
+movePiece(board, 'e2', 'e4');
+movePiece(board, 'd1', 'd3');
+showBoard(board);
+
+testCase('queen can attack d7', canOpponentCapture(board, 1, 3, 'w') === true); // d7 block
+testCase('queen cannot attack a8', canOpponentCapture(board, 0, 0, 'w') === false); // a8 block
+testCase('no attack on empty middle', canOpponentCapture(board, 4, 4, 'w') === false); // e4 block
+
+console.log('testing isKingInCheck function');
+board = initBoardPos();
+movePiece(board, 'd1', 'h5');
+movePiece(board, 'f7', 'f6');
+showBoard(board);
+
+testCase('black king  in check ', isKingInCheck(board, 'b') === true); // black king is in check
+movePiece(board, 'f6', 'f7');
+showBoard(board);
+testCase('black king is not in check', isKingInCheck(board, 'b') === false); // black king is not in check
+
+console.log('\nTesting leaveKingInCheck function');
+board = initBoardPos();
+movePiece(board, 'e2', 'e4');
+movePiece(board, 'd1', 'h5');
+showBoard(board);
+
+testCase('moving pawn would expose king', leaveKingInCheck(board, 'f7', 'f6', 'b') === true);
 
 // ============================================================================
 // TEST RESULTS
