@@ -32,6 +32,12 @@ import {
     isPawnPromotion,
     executePawnPromotion,
     isValidPromotionPiece,
+    getBoardString,
+    isFiftyMoveRule,
+    hasInsufficientMaterial,
+    findPiecePosition,
+    isThreefoldRepetition,
+    isDraw,
 } from './gameEngine.js';
 
 // ============================================================================
@@ -440,6 +446,176 @@ testCase('BS is valid promotion', isValidPromotionPiece('BS') === true);
 testCase('KN is valid promotion', isValidPromotionPiece('KN') === true);
 testCase('KG is not valid promotion', isValidPromotionPiece('KG') === false);
 testCase('PN is not valid promotion', isValidPromotionPiece('PN') === false);
+
+// ============================================================================
+// DRAW DETECTION TESTS - SIMPLE & CLEAR
+// ============================================================================
+
+console.log('\ntesting draw detection functionality');
+
+let drawBoard = [
+    ['   ', '   ', '   ', '   ', 'bKG', '   ', '   ', '   '],
+    ['   ', '   ', '   ', '   ', '   ', '   ', '   ', '   '],
+    ['   ', '   ', '   ', '   ', '   ', '   ', '   ', '   '],
+    ['   ', '   ', '   ', '   ', '   ', '   ', '   ', '   '],
+    ['   ', '   ', '   ', '   ', '   ', '   ', '   ', '   '],
+    ['   ', '   ', '   ', '   ', '   ', '   ', '   ', '   '],
+    ['   ', '   ', '   ', '   ', '   ', '   ', '   ', '   '],
+    ['   ', '   ', '   ', '   ', 'wKG', '   ', '   ', '   '],
+];
+testCase('king vs king is draw', hasInsufficientMaterial(drawBoard) === true);
+
+drawBoard = [
+    ['   ', '   ', '   ', '   ', 'bKG', '   ', '   ', '   '],
+    ['   ', '   ', '   ', '   ', '   ', '   ', '   ', '   '],
+    ['   ', '   ', '   ', '   ', '   ', '   ', '   ', '   '],
+    ['   ', '   ', '   ', '   ', '   ', '   ', '   ', '   '],
+    ['   ', '   ', '   ', '   ', '   ', '   ', '   ', '   '],
+    ['   ', '   ', '   ', '   ', '   ', '   ', '   ', '   '],
+    ['   ', '   ', '   ', '   ', '   ', '   ', '   ', '   '],
+    ['   ', '   ', 'wBS', '   ', 'wKG', '   ', '   ', '   '],
+];
+testCase('king + bishop vs king is draw', hasInsufficientMaterial(drawBoard) === true);
+
+drawBoard = [
+    ['   ', '   ', '   ', '   ', 'bKG', '   ', '   ', '   '],
+    ['   ', '   ', '   ', '   ', '   ', '   ', '   ', '   '],
+    ['   ', '   ', '   ', '   ', '   ', '   ', '   ', '   '],
+    ['   ', '   ', '   ', '   ', '   ', '   ', '   ', '   '],
+    ['   ', '   ', '   ', '   ', '   ', '   ', '   ', '   '],
+    ['   ', '   ', '   ', '   ', '   ', '   ', '   ', '   '],
+    ['   ', '   ', '   ', '   ', '   ', '   ', '   ', '   '],
+    ['   ', '   ', 'wKN', '   ', 'wKG', '   ', '   ', '   '],
+];
+testCase('king + knight vs king is draw', hasInsufficientMaterial(drawBoard) === true);
+
+drawBoard = [
+    ['   ', '   ', '   ', '   ', 'bKG', '   ', '   ', '   '],
+    ['   ', '   ', '   ', '   ', '   ', '   ', '   ', '   '],
+    ['   ', '   ', '   ', '   ', '   ', '   ', '   ', '   '],
+    ['   ', '   ', '   ', '   ', '   ', '   ', '   ', '   '],
+    ['   ', '   ', '   ', '   ', '   ', '   ', '   ', '   '],
+    ['   ', '   ', '   ', '   ', '   ', '   ', '   ', '   '],
+    ['   ', '   ', '   ', '   ', '   ', '   ', '   ', '   '],
+    ['   ', '   ', 'wQN', '   ', 'wKG', '   ', '   ', '   '],
+];
+testCase('king + queen vs king is NOT draw', hasInsufficientMaterial(drawBoard) === false);
+
+drawBoard = [
+    ['   ', '   ', '   ', '   ', 'bKG', '   ', '   ', '   '],
+    ['   ', '   ', '   ', '   ', '   ', '   ', '   ', '   '],
+    ['   ', '   ', '   ', '   ', '   ', '   ', '   ', '   '],
+    ['   ', '   ', '   ', '   ', '   ', '   ', '   ', '   '],
+    ['   ', '   ', '   ', '   ', '   ', '   ', '   ', '   '],
+    ['   ', '   ', '   ', '   ', '   ', '   ', '   ', '   '],
+    ['   ', '   ', 'wPN', '   ', '   ', '   ', '   ', '   '],
+    ['   ', '   ', '   ', '   ', 'wKG', '   ', '   ', '   '],
+];
+testCase('king + pawn vs king is NOT draw', hasInsufficientMaterial(drawBoard) === false);
+
+// find piece position
+testCase('find white king', findPiecePosition(drawBoard, 'wKG') !== null);
+testCase('find black king', findPiecePosition(drawBoard, 'bKG') !== null);
+testCase('find non-existent queen', findPiecePosition(drawBoard, 'wQN') === null);
+
+// board to string conversion
+const boardString = getBoardString(drawBoard);
+testCase('board string created', boardString.length > 0);
+testCase('board string correct length', boardString.length === 192); // 8x8x3 chars per square
+
+// fifty move rule - not triggered (too few moves)
+let testGame = createNewGameState();
+// add only 50 moves (not enough for 50-move rule)
+for (let i = 0; i < 50; i++) {
+    testGame.moveLog.push({
+        piece: 'wKN',
+        capturedPiece: null,
+    });
+}
+testCase('fifty move rule not triggered with few moves', isFiftyMoveRule(testGame) === false);
+
+// fifty move rule - not triggered (pawn move)
+testGame = createNewGameState();
+// add 100 moves but include a pawn move
+for (let i = 0; i < 99; i++) {
+    testGame.moveLog.push({
+        piece: 'wKN',
+        capturedPiece: null,
+    });
+}
+// add one pawn move
+testGame.moveLog.push({
+    piece: 'wPN',
+    capturedPiece: null,
+});
+testCase('fifty move rule not triggered with pawn move', isFiftyMoveRule(testGame) === false);
+
+// fifty move rule - not triggered (capture)
+testGame = createNewGameState();
+// Add 100 moves but include a capture
+for (let i = 0; i < 99; i++) {
+    testGame.moveLog.push({
+        piece: 'wKN',
+        capturedPiece: null,
+    });
+}
+// add one capture
+testGame.moveLog.push({
+    piece: 'wKN',
+    capturedPiece: 'bPN',
+});
+testCase('fifty move rule not triggered with capture', isFiftyMoveRule(testGame) === false);
+
+// fifty move rule - triggered
+testGame = createNewGameState();
+// add exactly 100 moves with no pawn moves or captures
+for (let i = 0; i < 100; i++) {
+    testGame.moveLog.push({
+        piece: 'wKN',
+        capturedPiece: null,
+    });
+}
+testCase('fifty move rule triggered', isFiftyMoveRule(testGame) === true);
+
+// threefold repetition - NOT triggered (too few positions)
+testGame = createNewGameState();
+testGame.positionHistory = ['pos1', 'pos2', 'pos1']; // only 3 positions total
+testCase('threefold repetition not triggered with few positions', isThreefoldRepetition(testGame) === false);
+
+// threefold repetition - not triggered (no repetition)
+testGame = createNewGameState();
+testGame.positionHistory = ['pos1', 'pos2', 'pos3', 'pos4', 'pos5', 'pos6']; // 6 different positions
+testCase('threefold repetition not triggered with different positions', isThreefoldRepetition(testGame) === false);
+
+// threefold repetition - triggered
+testGame = createNewGameState();
+const samePos = getBoardString(testGame.board);
+testGame.positionHistory = [samePos, 'pos2', samePos, 'pos3', samePos, 'pos4']; // same position 3 times
+testCase('threefold repetition triggered', isThreefoldRepetition(testGame) === true);
+
+// overall draw detection - insufficient material
+testGame = createNewGameState();
+testGame.board = [
+    ['   ', '   ', '   ', '   ', 'bKG', '   ', '   ', '   '],
+    ['   ', '   ', '   ', '   ', '   ', '   ', '   ', '   '],
+    ['   ', '   ', '   ', '   ', '   ', '   ', '   ', '   '],
+    ['   ', '   ', '   ', '   ', '   ', '   ', '   ', '   '],
+    ['   ', '   ', '   ', '   ', '   ', '   ', '   ', '   '],
+    ['   ', '   ', '   ', '   ', '   ', '   ', '   ', '   '],
+    ['   ', '   ', '   ', '   ', '   ', '   ', '   ', '   '],
+    ['   ', '   ', '   ', '   ', 'wKG', '   ', '   ', '   '],
+];
+testGame.positionHistory = ['pos1', 'pos2']; // not enough for repetition
+const drawResult = isDraw(testGame);
+testCase('draw detected for insufficient material', drawResult.isDraw === true);
+testCase('draw reason is insufficient material', drawResult.reason === 'insufficient material');
+
+// overall draw detection - no draw
+testGame = createNewGameState(); // normal starting position
+testGame.positionHistory = ['pos1', 'pos2']; // not enough for repetition
+const noDrawResult = isDraw(testGame);
+testCase('no draw detected for normal game', noDrawResult.isDraw === false);
+testCase('no draw reason is null', noDrawResult.reason === null);
 
 // ============================================================================
 // TEST RESULTS

@@ -623,6 +623,127 @@ export const isValidPromotionPiece = (piece) => {
 };
 
 // ============================================================================
+// DRAW DETECTION
+// ============================================================================
+
+export const hasInsufficientMaterial = (board) => {
+    const pieces = { w: [], b: [] };
+
+    // collect all the pieces on the board
+    for (let row = 0; row < 8; row++) {
+        for (let col = 0; col < 8; col++) {
+            const piece = board[row][col];
+            if (piece !== '   ') {
+                const color = piece[0];
+                const type = piece.substring(1);
+                pieces[color].push(type);
+            }
+        }
+    }
+
+    const whitePieces = pieces.w.sort();
+    const blackPieces = pieces.b.sort();
+
+    // specific pieces check
+    const onlyContains = (arr, allowedPieces) => {
+        return arr.every((piece) => allowedPieces.includes(piece)); // return true if all pieces in the array are in the allowed pieces list
+    };
+
+    // insufficient material scenarios
+    if (whitePieces.length === 1 && blackPieces.length === 1) return whitePieces[0] === 'KG' && blackPieces[0] === 'KG'; // king vs king
+
+    // king + bishop/knight vs king
+    if (whitePieces.length === 2 && blackPieces.length === 1) {
+        return (
+            (onlyContains(whitePieces, ['KG', 'BS']) || onlyContains(whitePieces, ['KG', 'KN'])) &&
+            blackPieces[0] === 'KG'
+        );
+    }
+
+    // king + bishop/knight vs king
+    if (blackPieces.length === 2 && whitePieces.length === 1) {
+        return (
+            (onlyContains(blackPieces, ['KG', 'BS']) || onlyContains(blackPieces, ['KG', 'KN'])) &&
+            whitePieces[0] === 'KG'
+        );
+    }
+    // king + bishop vs king + bishop (same color block)
+    if (whitePieces.length === 2 && blackPieces.length === 2) {
+        const whiteBishopKing = onlyContains(whitePieces, ['KG', 'BS']);
+        const blackBishopKing = onlyContains(blackPieces, ['KG', 'BS']);
+
+        if (whiteBishopKing && blackBishopKing) {
+            const whiteBishopPos = findPiecePosition(board, 'wBS'); // find white bishop
+            const blackBishopPos = findPiecePosition(board, 'bBS'); // find black bishop
+
+            if (whiteBishopPos && blackBishopPos) {
+                // check if they are in same color block
+                const whiteBlockColor = (whiteBishopPos[0] + whiteBishopPos[1]) % 2;
+                const blackBlockColor = (blackBishopPos[0] + blackBishopPos[1]) % 2;
+
+                return whiteBlockColor === blackBlockColor;
+            }
+        }
+    }
+    return false;
+};
+
+export const findPiecePosition = (board, piece) => {
+    for (let row = 0; row < 8; row++) {
+        for (let col = 0; col < 8; col++) {
+            if (board[row][col] === piece) {
+                return [row, col];
+            }
+        }
+    }
+    return null;
+};
+
+export const isFiftyMoveRule = (gameState) => {
+    if (gameState.moveLog.length < 100) return false; // 50 moves without pawn move or capture = 100 half moves
+
+    const last100Moves = gameState.moveLog.slice(-100);
+
+    for (const move of last100Moves) {
+        if (move.piece.endsWith('PN')) return false; // check for pawn move
+        if (move.capturedPiece !== null) return false; // check for capture
+    }
+
+    return true;
+};
+
+export const isThreefoldRepetition = (gameState) => {
+    if (gameState.positionHistory.length < 6) return false; // need at least 6 positions for 3 repetitions
+
+    const currentPosition = getBoardString(gameState.board);
+    let count = 0;
+
+    // check how many times current position appeared in history if 3 or more times, its a draw
+    for (const position of gameState.positionHistory) {
+        if (position === currentPosition) count++;
+    }
+    return count >= 3;
+};
+
+export const getBoardString = (board) => {
+    return board.map((row) => row.join('')).join('');
+};
+
+export const isDraw = (gameState) => {
+    // check for all draw condition
+    if (isStalemate(gameState.board, gameState.currentPlayer, gameState.castlingRights, gameState))
+        return { isDraw: true, reason: 'stalemate' };
+
+    if (hasInsufficientMaterial(gameState.board)) return { isDraw: true, reason: 'insufficient material' };
+
+    if (isFiftyMoveRule(gameState)) return { isDraw: true, reason: '50-move rule' };
+
+    if (isThreefoldRepetition(gameState)) return { isDraw: true, reason: 'threefold repetition' };
+
+    return { isDraw: false, reason: null };
+};
+
+// ============================================================================
 // GAME STATE MANAGEMENT
 // ============================================================================
 
@@ -635,6 +756,7 @@ export const createNewGameState = () => {
         moveCount: 0,
         castlingRights: createCastlingRights(),
         winner: null,
+        positionHistory: [getBoardString(initBoardPos())], // track position for repetition
     };
 };
 
@@ -738,14 +860,18 @@ export const makeGameMove = (gameState, from, to, promotionPiece = 'QN') => {
 
     switchTurn(gameState); // switch player's turn
 
-    const currentColor = gameState.currentPlayer; // update game status based on check, checkmate, stalemate
+    gameState.positionHistory.push(getBoardString(gameState.board));
 
-    if (isCheckmate(gameState.board, currentColor, gameState.castlingRights, gameState)) {
-        gameState.gameStatus = 'checkmate';
-        gameState.winner = currentColor === 'w' ? 'b' : 'w'; // previous player wins
-    } else if (isStalemate(gameState.board, currentColor, gameState.castlingRights, gameState)) {
-        gameState.gameStatus = 'stalemate';
+    const currentColor = gameState.currentPlayer; // update game status based on check, checkmate, stalemate
+    const drawResult = isDraw(gameState);
+
+    if (drawResult.isDraw) {
+        gameState.gameStatus = 'draw';
         gameState.winner = 'draw';
+        gameState.drawReason = drawResult.reason;
+    } else if (isCheckmate(gameState.board, currentColor, gameState.castlingRights, gameState)) {
+        gameState.gameStatus = 'checkmate';
+        gameState.winner = currentColor === 'w' ? 'b' : 'w';
     } else if (isKingInCheck(gameState.board, currentColor)) {
         gameState.gameStatus = 'check';
     } else {
