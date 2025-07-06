@@ -566,7 +566,7 @@ export const isEnPassantPossible = (gameState, from, to) => {
     if (Math.abs(lastToRow - lastFromRow) !== 2) return false;
     if (lastToRow - lastFromRow !== 2 * lastMoveDirection) return false;
 
-    if (lastToRow !== fromRow || lastToCol !== toCol) return false; // capturing pawn must be adjacent and ont he same rank
+    if (lastToRow !== fromRow || Math.abs(lastToCol - fromCol) !== 1) return false; // captured pawn must be adjacent
 
     const capturedPawn = gameState.board[lastToRow][lastToCol];
     if (capturedPawn[0] === color) return false; // captured pawn must be opposite color
